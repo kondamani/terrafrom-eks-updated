@@ -1,0 +1,40 @@
+pipeline {
+  agent any
+
+  environment {
+    TF_WORKDIR = "${WORKSPACE}"
+  }
+
+  stages {
+    stage('Terraform Init') {
+      steps {
+        dir("${TF_WORKDIR}") {
+          sh 'terraform init -backend-config="key=eks/terraform.tfstate"'
+        }
+      }
+    }
+
+    stage('Terraform Plan') {
+      steps {
+        dir("${TF_WORKDIR}") {
+          sh 'terraform plan -out=tfplan'
+        }
+      }
+    }
+
+    stage('Terraform Apply') {
+      steps {
+        input message: "Approve to apply changes?"
+        dir("${TF_WORKDIR}") {
+          sh 'terraform apply tfplan'
+        }
+      }
+    }
+  }
+
+  post {
+    success {
+      echo "✅ Terraform provisioning complete."
+    }
+  }
+}
