@@ -1,4 +1,4 @@
-/*terraform {
+terraform {
   backend "s3" {
     bucket = "manis3bucket"
     key = "eks/terraform.tfstate"
@@ -7,4 +7,4 @@
     encrypt = true
     
   }
-}*/
+}
