@@ -14,4 +14,7 @@ data "aws_eks_cluster_auth" "cluster" {
 
 }
 
+data "aws_eks_cluster" "eks" {
+  name = module.eks_cluster_name.cluster_name
+}
 
