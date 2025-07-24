@@ -33,7 +33,7 @@ pipeline {
       steps {
         input message: "Approve to apply changes?"
         dir("${TF_WORKDIR}") {
-          sh 'terraform apply tfplan'
+          sh 'terraform destroy'
         }
       }
     }

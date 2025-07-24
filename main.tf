@@ -43,7 +43,7 @@ module "eks_cluster_name" {
   }
 }
 
-module "s3" {
+/*module "s3" {
   source = "terraform-aws-modules/s3-bucket/aws"
   bucket = var.table_name
   version = "4.0.0"
@@ -68,7 +68,7 @@ module "dynamodb-table" {
       type = "S"
     }
   ]
-}
+}*/
 
 module "alb_irsa" {
   source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
