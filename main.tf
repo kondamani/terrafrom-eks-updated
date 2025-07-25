@@ -1,5 +1,8 @@
+########################################
+# main.tf (Updated with ALB IRSA Setup)
+########################################
 
-
+# VPC Module
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "4.0.2"
@@ -19,6 +22,7 @@ module "vpc" {
   }
 }
 
+# EKS Cluster Module
 module "eks_cluster_name" {
   source          = "terraform-aws-modules/eks/aws"
   version         = "20.8.4"
@@ -35,15 +39,32 @@ module "eks_cluster_name" {
       max_size       = 3
       desired_size   = 2
       instance_types = [var.node_instance_type]
-   }
- }
+    }
+  }
 
   tags = {
     Name = var.eks_cluster_name
   }
 }
 
-/*module "s3" {
+# IRSA for AWS Load Balancer Controller
+module "alb_irsa" {
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+  version = "~> 5.0"
+
+  role_name_prefix = "alb-controller"
+
+  attach_load_balancer_controller_policy = true
+
+  oidc_providers = {
+    main = {
+      provider_arn = module.eks_cluster_name.oidc_provider_arn
+      namespace_service_accounts = [
+        "${var.alb_service_account_namespace}:${var.alb_service_account_name}"
+      ]
+    }
+  }
+  /*module "s3" {
   source = "terraform-aws-modules/s3-bucket/aws"
   bucket = var.table_name
   version = "4.0.0"
@@ -70,39 +91,45 @@ module "dynamodb-table" {
   ]
 }*/
 
-module "alb_irsa" {
-  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
-  version = "~> 5.0"
-
-  role_name_prefix = "alb-controller"
-
-  attach_load_balancer_controller_policy = true
-
-  oidc_providers = {
-    main = {
-      provider_arn = module.eks_cluster_name.oidc_provider_arn
-      namespace_service_accounts = [
-        "${var.alb_service_account_namespace}:${var.alb_service_account_name}"
-      ]
-    }
-  }
-
   tags = {
     Name = "alb-irsa-role"
   }
 }
 
+
+# Kubernetes Service Account for ALB Controller
 resource "kubernetes_service_account" "alb_sa" {
-    metadata {
-        name = var.alb_service_account_name
-        namespace = var.alb_service_account_namespace
-        annotations = {
-            "eks.amazonaws.com/role-arn" = module.alb_irsa.iam_role_arn
-        }
+  metadata {
+    name      = var.alb_service_account_name
+    namespace = "kube-system"
+    annotations = {
+      "eks.amazonaws.com/role-arn" = module.alb_irsa.iam_role_arn
     }
-  
+  }
+
+  depends_on = [module.alb_irsa]
 }
 
+resource "kubernetes_config_map" "aws_auth" {
+  metadata {
+    name      = "aws-auth"
+    namespace = "kube-system"
+  }
 
+  data = {
+    mapRoles = yamlencode([
+      {
+        rolearn  = module.eks_cluster_name.eks_managed_node_groups["default"].iam_role_arn
+        username = "system:node:{{EC2PrivateDNSName}}"
+        groups   = ["system:bootstrappers", "system:nodes"]
+      },
+      {
+        rolearn  = module.alb_irsa.iam_role_arn
+        username = "admin"
+        groups   = ["system:masters"]
+      }
+    ])
+  }
 
-
+  depends_on = [module.eks_cluster_name]
+}
