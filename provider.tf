@@ -8,10 +8,10 @@ provider "kubernetes" {
   cluster_ca_certificate = base64decode(data.aws_eks_cluster.eks.certificate_authority[0].data)
 }
 
-#data "aws_eks_cluster_auth" "cluster" {
-  #name = module.eks_cluster_name.cluster_name
-#}
-
-data "aws_eks_cluster" "eks" {
+data "aws_eks_cluster_auth" "cluster" {
   name = module.eks_cluster_name.cluster_name
 }
+
+/*data "aws_eks_cluster" "eks" {
+  name = module.eks_cluster_name.cluster_name
+}*/
